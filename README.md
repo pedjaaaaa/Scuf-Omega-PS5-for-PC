@@ -13,8 +13,7 @@ Sony's real VID (`0x054C` / DS4 `0x05C4`) via ViGEm.
 > ⚠️ **This is calibrated for one specific SCUF model.** The byte/bit map in
 > `ScufReport.cs` was reverse-engineered for VID `1B1C` / PID `3A27`. A
 > different SCUF (or firmware) may use a different PID and/or report layout. See
-> "Porting to another pad" below — the included calibration wizard makes it
-> straightforward.
+> "Porting to another SCUF / pad" below for how to remap it.
 
 ## What works
 
@@ -28,14 +27,31 @@ reports; PRs welcome. The Omega has no adaptive triggers/haptics anyway.
 
 ## Requirements
 
-- Windows 10/11, .NET 8 SDK
-- **[ViGEmBus](https://github.com/nefarius/ViGEmBus/releases)** driver (virtual DS4)
-- **[HidHide](https://github.com/nefarius/HidHide/releases)** driver (hides the physical pad; optional — see `EnableHidHide`)
-- Admin rights (the app auto-elevates via its manifest)
+- Windows 10/11
+- **[.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)** — needed to build
+  from source. (If you use a self-contained published exe as described in
+  *Auto-start* below, end users don't need .NET installed.)
+- **[ViGEmBus](https://github.com/nefarius/ViGEmBus/releases)** driver (creates the virtual DS4)
+- **[HidHide](https://github.com/nefarius/HidHide/releases)** driver (hides the physical pad; optional — see `EnableHidHide` in `ScufBridge.cs`)
+- Admin rights — the app auto-elevates via its manifest (HidHide and ViGEm both require it)
+
+> Install **both drivers first and reboot** before running the app. On first run
+> you'll get a UAC prompt because the app elevates itself.
+
+### Which SCUF does this support?
+
+Out of the box, only the specific model it was calibrated for: **Corsair VID
+`0x1B1C`, PID `0x3A27`** (a SCUF running in PS/HID mode). Other SCUF models or
+firmware revisions may enumerate with a different PID and/or report layout — see
+[Porting to another SCUF / pad](#porting-to-another-scuf--pad).
 
 ## Build & run
 
+Clone the repo and run from its root:
+
 ```powershell
+git clone https://github.com/pedjaaaaa/Scuf-Omega-PS5-for-PC.git
+cd Scuf-Omega-PS5-for-PC
 dotnet run -c Release
 ```
 
@@ -46,9 +62,16 @@ dotnet add package Nefarius.Drivers.HidHide --prerelease
 dotnet add package Nefarius.Utilities.DeviceManagement
 ```
 
-The app lives in the system tray. Right-click → **Exit** to quit cleanly (this
-restores HidHide and drops the virtual pad). Logs go to
-`%LOCALAPPDATA%\ScufDualSense\scuf.log`.
+The app lives in the system tray (look for the PlayStation icon). Right-click →
+**Exit** to quit cleanly (this restores HidHide and drops the virtual pad). Logs
+go to `%LOCALAPPDATA%\ScufDualSense\scuf.log`.
+
+> **Note on the build output path.** The project pins `<Platforms>x64</Platforms>`,
+> so a plain `dotnet build` writes to `bin\Release\net8.0-windows\`, while a
+> build that specifies the platform (e.g. `-p:Platform=x64`) writes to
+> `bin\x64\Release\net8.0-windows\`. If a change doesn't seem to take effect,
+> make sure you're running the exe from the folder your last build actually
+> wrote to.
 
 ## Usage in games
 
@@ -79,13 +102,45 @@ can't elevate):
 
 ## Porting to another SCUF / pad
 
-The report layout is per-model. To map a different pad:
+The HID report layout is per-model, so a different SCUF (or firmware) will likely
+need remapping. The process:
 
-1. Use the **calibration wizard** (in `/tools/scuf-calibrate`): it walks you
-   through each control and prints an exact byte/bit layout map.
-2. Update the VID/PID in `ScufBridge.cs` + `ScufReport.cs` and the mask/offset
-   constants in `ScufReport.cs` from the wizard output.
-3. The `HidDumper` tool is there too if you need raw report inspection.
+1. **Find your pad's VID/PID.** With the SCUF in PS mode, open Device Manager →
+   your controller → *Details* → *Hardware Ids*, and note the `VID_xxxx` /
+   `PID_xxxx` values.
+2. **Update the identifiers.** Set `Vid`, `Pid`, and `DeviceFragment` in
+   `ScufBridge.cs`, and confirm the VID/PID references in `ScufReport.cs`.
+3. **Map the report bytes.** Determine which report byte/bit each control uses,
+   then update the offset and mask constants at the top of `ScufReport.cs`
+   (`LX`, `L2_ANALOG`, `M_CROSS`, etc.). You can inspect the raw report bytes by
+   temporarily logging the buffer in `RunOneCycle` in `ScufBridge.cs` and
+   watching how bytes change as you press each control.
+
+> A **calibration wizard** is included in [`tools/`](tools/) to speed this up: run
+> it (`dotnet run` from `tools/`), press each control when prompted, and it prints
+> a byte/bit layout map you can copy straight into `ScufReport.cs`. Requires the
+> SCUF in PS mode with no remapper app or HidHide hiding it.
+
+## Troubleshooting
+
+- **`GenerateBundle` / "the process cannot access the file ... ScufDualSense.exe
+  because it is being used by another process"** when publishing or building.
+  A copy of the app is still running and holding the exe. Exit it from the tray
+  (right-click → **Exit**), and if it was launched via Task Scheduler, stop it
+  there or end `ScufDualSense.exe` in Task Manager, then rebuild.
+- **The tray/exe still shows the generic icon.** Two causes: (1) you ran a stale
+  build from a different output folder — see the build-output-path note above;
+  or (2) Windows cached the old icon. Fully exit the app, then refresh the cache
+  with `ie4uinit.exe -show`.
+- **`[fatal] ViGEmBus unavailable`** in the log. The ViGEmBus driver isn't
+  installed (or you didn't reboot after installing). Install it and reboot.
+- **Game shows Xbox prompts / double input.** Steam Input is re-wrapping the
+  virtual DS4. Disable Steam Input for that game (see *Usage in games*).
+- **A control maps wrong (or not at all).** The report layout differs for your
+  pad — see *Porting to another SCUF / pad*.
+- **Where are the logs?** `%LOCALAPPDATA%\ScufDualSense\scuf.log` (also reachable
+  via tray → **Open log folder**). A `[rate]` line reports the pad's polling rate
+  on connect (~250 Hz is normal — the genuine DualShock 4 USB rate).
 
 ## Honest caveats
 
