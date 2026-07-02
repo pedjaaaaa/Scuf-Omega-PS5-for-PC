@@ -1,0 +1,24 @@
+# Build output
+bin/
+obj/
+
+# Publish output
+publish/
+
+# Generated icon can be regenerated from ps5-icon.png; keep it tracked if you prefer.
+# app.ico
+
+# Logs
+*.log
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
