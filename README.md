@@ -76,11 +76,38 @@ go to `%LOCALAPPDATA%\ScufDualSense\scuf.log`.
 ## Usage in games
 
 1. SCUF in **PS mode**.
-2. For a game with native PlayStation support (e.g. Arc Raiders): **disable
-   Steam Input for that game** (per-game Controller override). Steam Input would
-   otherwise re-wrap the virtual DS4 as an Xbox pad and undo the PlayStation
-   prompts.
-3. Launch. You should see PlayStation prompts and a single, clean controller.
+2. Start the bridge (tray icon appears).
+3. Configure Steam (see below) so it doesn't re-wrap the virtual DS4.
+4. Launch the game. You should see PlayStation prompts and a single, clean
+   controller.
+
+### Steam settings (important)
+
+Steam Input will, by default, grab the virtual DS4 and re-present it as an Xbox
+pad — which gives you Xbox prompts and can cause double input. The virtual
+controller works fine outside Steam; these steps are only needed for games
+launched through Steam.
+
+**Per-game (recommended):**
+
+1. In your Steam **Library**, right-click the game → **Properties**.
+2. Open the **Controller** tab.
+3. Set **Override for _[game]_** to **Disable Steam Input**.
+4. Fully close and relaunch the game.
+
+**Global setting to check** (Steam → **Settings** → **Controller**):
+
+- If you want Steam to leave PlayStation controllers alone everywhere, turn
+  **off** *PlayStation Controller Support*. Leaving it on is fine as long as you
+  set the per-game override above — the per-game setting wins.
+- Turning these toggles on/off takes effect after a game restart, sometimes after
+  a Steam restart.
+
+**Non-Steam games:** no Steam configuration needed — just run the bridge and
+launch the game.
+
+> Rule of thumb: if you're seeing **Xbox** button prompts or inputs firing twice,
+> Steam Input is still active for that title. Re-check the per-game override.
 
 ## Auto-start at logon (hidden, elevated)
 
