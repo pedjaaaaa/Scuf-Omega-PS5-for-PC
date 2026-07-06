@@ -55,6 +55,16 @@ internal static class Program
         tray.BalloonTipText = "Running. Put your SCUF in PS mode.";
         tray.ShowBalloonTip(3000);
 
+        // Live throughput on the tray tooltip (hover to see it). Ticks on the
+        // UI thread, so updating tray.Text here is safe.
+        using var rateTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+        rateTimer.Tick += (_, _) =>
+        {
+            int hz = bridge.CurrentRateHz;
+            tray.Text = hz > 0 ? $"SCUF -> DS4  (~{hz} Hz)" : "SCUF -> DS4  (waiting for pad)";
+        };
+        rateTimer.Start();
+
         Application.Run();          // pumps the tray; blocks until Application.Exit()
 
         bridge.Dispose();

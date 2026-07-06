@@ -30,11 +30,19 @@ public sealed class ScufBridge : IDisposable
     // so this is defensive. Flip false if hiding ever disturbs the reader.
     private const bool EnableHidHide = true;
 
+    // Analog value above which we also assert the digital L2/R2 button bit.
+    private const byte TriggerDigitalThreshold = 12;
+
     private static readonly Guid HidInterface = new("4D1E55B2-F16F-11CF-88CB-001111000030");
 
     private readonly Action<string> _log;
     private volatile bool _running;
     private Thread? _thread;
+
+    // Reports/second we forward to the virtual DS4 — i.e. the rate the GAME
+    // sees at the end of the pipeline. 0 when no controller is connected.
+    private volatile int _currentRateHz;
+    public int CurrentRateHz => _currentRateHz;
 
     private ViGEmClient? _client;
     private HidHideControlService? _hidHide;
@@ -151,19 +159,9 @@ public sealed class ScufBridge : IDisposable
             _log($"Connected. Virtual DS4 online ({len}-byte reports).");
 
             var buf = new byte[len];
-
-            // --- report-rate monitor ---
-            // Measures the effective polling rate over RateWindowMs windows.
-            // Logs the rate once when it first stabilizes, then stays quiet
-            // unless it drifts beyond RateDriftHz from the last reported value
-            // (e.g. a mode change or USB issue). Keeps diagnostic value without
-            // spamming the log.
-            const int RateWindowMs = 5000;
-            const double RateDriftHz = 25.0;
-            int reportCount = 0;
-            double lastReportedHz = -1;
-            var rateSw = System.Diagnostics.Stopwatch.StartNew();
-
+            long windowStart = Environment.TickCount64;
+            int windowCount = 0;
+            int secondsSinceLog = 0;
             while (_running)
             {
                 int n;
@@ -172,26 +170,32 @@ public sealed class ScufBridge : IDisposable
                 catch { break; } // device removed
                 if (n < ScufReport.MinLength) continue;
 
-                reportCount++;
-                if (rateSw.ElapsedMilliseconds >= RateWindowMs)
-                {
-                    double hz = reportCount * 1000.0 / rateSw.ElapsedMilliseconds;
-                    if (lastReportedHz < 0)
-                        _log($"[rate] {hz:F0} Hz");
-                    else if (Math.Abs(hz - lastReportedHz) >= RateDriftHz)
-                        _log($"[rate] {hz:F0} Hz (changed from {lastReportedHz:F0} Hz)");
-                    lastReportedHz = hz;
-                    reportCount = 0;
-                    rateSw.Restart();
-                }
-
                 ScufState s = ScufReport.Parse(buf);
                 Apply(in s, ds4);
+
+                // Throughput: reports forwarded per second. The SCUF streams
+                // continuously (gyro never rests), so this reflects the actual
+                // delivered poll rate even when you aren't pressing anything.
+                windowCount++;
+                long now = Environment.TickCount64;
+                long elapsed = now - windowStart;
+                if (elapsed >= 1000)
+                {
+                    _currentRateHz = (int)(windowCount * 1000L / elapsed);
+                    windowCount = 0;
+                    windowStart = now;
+                    if (++secondsSinceLog >= 30)   // quiet heartbeat, once per 30s
+                    {
+                        _log($"Throughput ~{_currentRateHz} Hz to virtual DS4.");
+                        secondsSinceLog = 0;
+                    }
+                }
             }
         }
         catch (Exception ex) { _log($"[warn] cycle error ({ex.Message})."); }
         finally
         {
+            _currentRateHz = 0;
             try { ds4?.Disconnect(); } catch { }
             try { stream?.Dispose(); } catch { }
         }
@@ -223,13 +227,11 @@ public sealed class ScufBridge : IDisposable
         ds4.SetSliderValue(DualShock4Slider.LeftTrigger, s.L2);
         ds4.SetSliderValue(DualShock4Slider.RightTrigger, s.R2);
 
-        // Digital trigger bits. Games often read these (not the analog pressure)
-        // to decide whether a trigger is "pressed". Use the report's digital bit,
-        // OR fall back to a threshold on the analog value so it works even if the
-        // pad doesn't set the bit.
-        const byte TriggerThreshold = 8;
-        ds4.SetButtonState(DualShock4Button.TriggerLeft,  s.L2Btn || s.L2 > TriggerThreshold);
-        ds4.SetButtonState(DualShock4Button.TriggerRight, s.R2Btn || s.R2 > TriggerThreshold);
+        // Some games (e.g. Arc Raiders ADS on L2) read the DIGITAL trigger
+        // BUTTON, not the analog axis. Derive those bits from the analog value
+        // so aim/fire register no matter which the game binds to.
+        ds4.SetButtonState(DualShock4Button.TriggerLeft, s.L2 > TriggerDigitalThreshold);
+        ds4.SetButtonState(DualShock4Button.TriggerRight, s.R2 > TriggerDigitalThreshold);
 
         ds4.SetButtonState(DualShock4Button.Cross, s.Cross);
         ds4.SetButtonState(DualShock4Button.Circle, s.Circle);

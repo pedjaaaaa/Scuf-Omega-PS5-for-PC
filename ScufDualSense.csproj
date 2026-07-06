@@ -24,6 +24,15 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
+  <!-- The tools/ folder is a separate project (ScufCalibrate) with its own
+       entry point. Exclude it so the SDK's default globbing doesn't pull it
+       into this build (which would cause duplicate Main / CS0017). -->
+  <ItemGroup>
+    <Compile Remove="tools/**/*.cs" />
+    <EmbeddedResource Remove="tools/**/*" />
+    <None Remove="tools/**/*" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="HidSharp" Version="2.1.0" />
     <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />
