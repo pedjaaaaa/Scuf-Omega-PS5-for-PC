@@ -127,6 +127,52 @@ can't elevate):
    - **Conditions**: uncheck *Start only on AC power* if on a laptop.
 3. Done — it now starts hidden at logon and waits for the pad.
 
+## Higher polling rate (optional, ~250 → 800+ Hz)
+
+In PS mode the SCUF reports at ~250 Hz (a real DualShock 4's USB rate). That's
+fine for most people, but you can raise it using **hidusbf**, a signed kernel USB
+filter (as distributed by Battle Beaver). hidusbf works at the Windows USB
+interrupt-scheduling layer — it doesn't change the device itself — and your
+bridge inherits whatever rate the pad delivers, so **no app changes are needed**.
+Thanks to Front_Frame4653 for the driver-variant and stability findings that led
+to this.
+
+**Realistic result:** ~800–870 Hz through the virtual DS4 (mine is stable at
+**870 Hz** and survives reboots). This is ~3.5× a genuine DualShock 4. True
+1000 Hz only exists in the pad's **PC/Xbox mode**, which loses the touchpad, PS
+button, and PlayStation prompts — so this bridge tops out below 1000 by design.
+
+### Setup
+
+1. Get the Battle Beaver hidusbf package.
+2. In the `DRIVER` folder, run **`2kHz-4kHz.cmd`** first (this swaps in the
+   correct driver variant — don't skip it).
+3. Run **`Setup.exe`** → *Install Service* → reboot.
+4. Run `Setup.exe` again → check **`filter on device`** for the SCUF → set
+   **RefreshRate = 62** → **Restart**.
+
+### The two things that actually matter
+
+- **Plug the SCUF into a rear motherboard USB 3.x port — never a hub or
+  front-panel port.** This was the single biggest factor: a hub capped me at
+  ~566 Hz; a rear 3.x port jumped it to ~750. If you're below ~700, this is
+  almost certainly why.
+- **RefreshRate 62 beat 31 for me** (~750 → 870). Try both and keep whichever
+  reads higher *and* stable in a tester — some setups do better on 31.
+
+Measure with a polling tester (e.g. Gamepadla) pointed at the virtual **"Wireless
+Controller"** — that's what the game sees. The tray tooltip also shows a rate, but
+it reads a little low (it counts reports drained from the Windows HID buffer,
+which coalesces); trust the tester.
+
+### Caveats
+
+hidusbf is a kernel driver. Requires USB 3.x and the Microsoft USB 3.x stack
+(Win 8/10/11). Some builds/config may require disabling Memory Integrity (Core
+Isolation) — a real security tradeoff, your call. And this adds to the driver
+stack near anti-cheat (hidusbf + ViGEm + HidHide); widely used, but never
+zero-risk. Use at your own judgement.
+
 ## Porting to another SCUF / pad
 
 The HID report layout is per-model, so a different SCUF (or firmware) will likely
@@ -166,8 +212,10 @@ need remapping. The process:
 - **A control maps wrong (or not at all).** The report layout differs for your
   pad — see *Porting to another SCUF / pad*.
 - **Where are the logs?** `%LOCALAPPDATA%\ScufDualSense\scuf.log` (also reachable
-  via tray → **Open log folder**). A `[rate]` line reports the pad's polling rate
-  on connect (~250 Hz is normal — the genuine DualShock 4 USB rate).
+  via tray → **Open log folder**). The tray tooltip (hover) and the log's periodic
+  throughput line show the delivered poll rate. ~250 Hz is normal (the genuine
+  DualShock 4 USB rate); to go higher, see *Higher polling rate*. Note the
+  tooltip reads a little low versus a dedicated tester — see that section.
 
 ## Honest caveats
 
