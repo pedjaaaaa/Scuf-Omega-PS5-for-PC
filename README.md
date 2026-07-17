@@ -130,35 +130,43 @@ can't elevate):
 ## Higher polling rate (optional, ~250 → 800+ Hz)
 
 In PS mode the SCUF reports at ~250 Hz (a real DualShock 4's USB rate). That's
-fine for most people, but you can raise it using **hidusbf**, a signed kernel USB
-filter (as distributed by Battle Beaver). hidusbf works at the Windows USB
-interrupt-scheduling layer — it doesn't change the device itself — and your
-bridge inherits whatever rate the pad delivers, so **no app changes are needed**.
-Thanks to Front_Frame4653 for the driver-variant and stability findings that led
-to this.
+fine for most people, but you can raise it — up to a **full 1000 Hz** — using
+**hidusbf**, a signed kernel USB filter (as distributed by Battle Beaver). hidusbf
+works at the Windows USB interrupt-scheduling layer — it doesn't change the device
+itself — and your bridge inherits whatever rate the pad delivers, so **no app
+changes are needed**. Thanks to Front_Frame4653 for the driver-variant and
+stability findings that led to this.
 
-**Realistic result:** ~800–870 Hz through the virtual DS4 (mine is stable at
-**870 Hz** and survives reboots). This is ~3.5× a genuine DualShock 4. True
-1000 Hz only exists in the pad's **PC/Xbox mode**, which loses the touchpad, PS
-button, and PlayStation prompts — so this bridge tops out below 1000 by design.
+**Realistic result:** with the registry patch below and the regular 1000 Hz
+hidusbf driver, a stable **1000 Hz** through the virtual DS4 — 4× a genuine
+DualShock 4. (Without the registry patch, or on a sub-optimal USB port, expect
+~800–870 Hz.)
 
 ### Setup
 
 1. Get the Battle Beaver hidusbf package.
-2. In the `DRIVER` folder, run **`2kHz-4kHz.cmd`** first (this swaps in the
-   correct driver variant — don't skip it).
-3. Run **`Setup.exe`** → *Install Service* → reboot.
+2. Run **`Setup.exe`** → *Install Service* → reboot.
+3. **Enable the USB xHCI patch (required for the filter options to appear).** Open
+   an **Administrator** Command Prompt and run:
+   ```cmd
+   reg add HKLM\SYSTEM\CurrentControlSet\Services\HIDUSBF\Parameters /v PatchUSBXHCI /t REG_DWORD /d 3 /f
+   reg add HKLM\SYSTEM\CurrentControlSet\Services\HIDUSBF\Parameters /v PatchUSBPort /t REG_DWORD /d 1 /f
+   ```
+   Then reboot. Without these two values, the hidusbf parameters won't show up for
+   modern xHCI USB 3.x controllers.
 4. Run `Setup.exe` again → check **`filter on device`** for the SCUF → set
-   **RefreshRate = 62** → **Restart**.
+   **RefreshRate = 1000** → **Restart**.
 
-### The two things that actually matter
+> The `2kHz-4kHz.cmd` driver-variant swap is only needed if you're chasing rates
+> above 1000 Hz. For a straight 1000 Hz, the regular hidusbf driver plus the
+> registry patch above is enough.
+
+### The one thing that matters most
 
 - **Plug the SCUF into a rear motherboard USB 3.x port — never a hub or
   front-panel port.** This was the single biggest factor: a hub capped me at
-  ~566 Hz; a rear 3.x port jumped it to ~750. If you're below ~700, this is
-  almost certainly why.
-- **RefreshRate 62 beat 31 for me** (~750 → 870). Try both and keep whichever
-  reads higher *and* stable in a tester — some setups do better on 31.
+  ~566 Hz; a rear 3.x port is what enables the full rate. If you're stuck well
+  below your target, this is almost certainly why.
 
 Measure with a polling tester (e.g. Gamepadla) pointed at the virtual **"Wireless
 Controller"** — that's what the game sees. The tray tooltip also shows a rate, but
