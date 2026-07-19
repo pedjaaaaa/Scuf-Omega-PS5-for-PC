@@ -25,7 +25,7 @@ Follow these steps in order. Each links to the detailed section further down.
    (creates the virtual DS4), then reboot.
 3. **Install the [HidHide](https://github.com/nefarius/HidHide/releases) driver**
    (hides the physical pad), then reboot.
-4. **Confirm your controller matches.** Put the SCUF in **PS mode**, open Device
+4. **Confirm your controller matches.** Put the SCUF in **PS5 mode**, open Device
    Manager → your controller → *Details* → *Hardware Ids*, and check it reads
    `VID_1B1C` / `PID_3A27`. If it differs, see
    [Porting to another SCUF / pad](#porting-to-another-scuf--pad) before continuing.
@@ -101,7 +101,7 @@ go to `%LOCALAPPDATA%\ScufDualSense\scuf.log`.
 
 ## Usage in games
 
-1. SCUF in **PS mode**.
+1. SCUF in **PS5 mode**.
 2. Start the bridge (tray icon appears).
 3. Configure Steam (see below) so it doesn't re-wrap the virtual DS4.
 4. Launch the game. You should see PlayStation prompts and a single, clean
@@ -158,7 +158,7 @@ can't elevate):
 The HID report layout is per-model, so a different SCUF (or firmware) will likely
 need remapping. The process:
 
-1. **Find your pad's VID/PID.** With the SCUF in PS mode, open Device Manager →
+1. **Find your pad's VID/PID.** With the SCUF in PS5 mode, open Device Manager →
    your controller → *Details* → *Hardware Ids*, and note the `VID_xxxx` /
    `PID_xxxx` values.
 2. **Update the identifiers.** Set `Vid`, `Pid`, and `DeviceFragment` in
@@ -172,7 +172,7 @@ need remapping. The process:
 > A **calibration wizard** is included in [`tools/`](tools/) to speed this up: run
 > it (`dotnet run` from `tools/`), press each control when prompted, and it prints
 > a byte/bit layout map you can copy straight into `ScufReport.cs`. Requires the
-> SCUF in PS mode with no remapper app or HidHide hiding it.
+> SCUF in PS5 mode with no remapper app or HidHide hiding it.
 
 ## Troubleshooting
 
