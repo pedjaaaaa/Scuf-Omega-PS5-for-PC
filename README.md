@@ -15,6 +15,32 @@ Sony's real VID (`0x054C` / DS4 `0x05C4`) via ViGEm.
 > different SCUF (or firmware) may use a different PID and/or report layout. See
 > "Porting to another SCUF / pad" below for how to remap it.
 
+## Quick start
+
+Follow these steps in order. Each links to the detailed section further down.
+
+1. **Install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).**
+   Needed to build the app.
+2. **Install the [ViGEmBus](https://github.com/nefarius/ViGEmBus/releases) driver**
+   (creates the virtual DS4), then reboot.
+3. **Install the [HidHide](https://github.com/nefarius/HidHide/releases) driver**
+   (hides the physical pad), then reboot.
+4. **Confirm your controller matches.** Put the SCUF in **PS mode**, open Device
+   Manager → your controller → *Details* → *Hardware Ids*, and check it reads
+   `VID_1B1C` / `PID_3A27`. If it differs, see
+   [Porting to another SCUF / pad](#porting-to-another-scuf--pad) before continuing.
+5. **Clone and run the app:**
+   ```powershell
+   git clone https://github.com/pedjaaaaa/Scuf-Omega-PS5-for-PC.git
+   cd Scuf-Omega-PS5-for-PC
+   dotnet run -c Release
+   ```
+   A PlayStation icon appears in the system tray. See [Build & run](#build--run).
+6. **(If you use Steam)** disable Steam Input for your game — see
+   [Steam settings](#steam-settings-important).
+7. **(Optional) Start it automatically at logon** via Task Scheduler — see
+   [Auto-start at logon](#auto-start-at-logon-hidden-elevated).
+
 ## What works
 
 Sticks, triggers, all face/shoulder/menu buttons, D-pad, L3/R3, **PS button**,
@@ -127,60 +153,6 @@ can't elevate):
    - **Conditions**: uncheck *Start only on AC power* if on a laptop.
 3. Done — it now starts hidden at logon and waits for the pad.
 
-## Higher polling rate (optional, ~250 → 800+ Hz)
-
-In PS mode the SCUF reports at ~250 Hz (a real DualShock 4's USB rate). That's
-fine for most people, but you can raise it — up to a **full 1000 Hz** — using
-**hidusbf**, a signed kernel USB filter (as distributed by Battle Beaver). hidusbf
-works at the Windows USB interrupt-scheduling layer — it doesn't change the device
-itself — and your bridge inherits whatever rate the pad delivers, so **no app
-changes are needed**. Thanks to Front_Frame4653 for the driver-variant and
-stability findings that led to this.
-
-**Realistic result:** with the registry patch below and the regular 1000 Hz
-hidusbf driver, a stable **1000 Hz** through the virtual DS4 — 4× a genuine
-DualShock 4. (Without the registry patch, or on a sub-optimal USB port, expect
-~800–870 Hz.)
-
-### Setup
-
-1. Get the Battle Beaver hidusbf package.
-2. Run **`Setup.exe`** → *Install Service* → reboot.
-3. **Enable the USB xHCI patch (required for the filter options to appear).** Open
-   an **Administrator** Command Prompt and run:
-   ```cmd
-   reg add HKLM\SYSTEM\CurrentControlSet\Services\HIDUSBF\Parameters /v PatchUSBXHCI /t REG_DWORD /d 3 /f
-   reg add HKLM\SYSTEM\CurrentControlSet\Services\HIDUSBF\Parameters /v PatchUSBPort /t REG_DWORD /d 1 /f
-   ```
-   Then reboot. Without these two values, the hidusbf parameters won't show up for
-   modern xHCI USB 3.x controllers.
-4. Run `Setup.exe` again → check **`filter on device`** for the SCUF → set
-   **RefreshRate = 1000** → **Restart**.
-
-> The `2kHz-4kHz.cmd` driver-variant swap is only needed if you're chasing rates
-> above 1000 Hz. For a straight 1000 Hz, the regular hidusbf driver plus the
-> registry patch above is enough.
-
-### The one thing that matters most
-
-- **Plug the SCUF into a rear motherboard USB 3.x port — never a hub or
-  front-panel port.** This was the single biggest factor: a hub capped me at
-  ~566 Hz; a rear 3.x port is what enables the full rate. If you're stuck well
-  below your target, this is almost certainly why.
-
-Measure with a polling tester (e.g. Gamepadla) pointed at the virtual **"Wireless
-Controller"** — that's what the game sees. The tray tooltip also shows a rate, but
-it reads a little low (it counts reports drained from the Windows HID buffer,
-which coalesces); trust the tester.
-
-### Caveats
-
-hidusbf is a kernel driver. Requires USB 3.x and the Microsoft USB 3.x stack
-(Win 8/10/11). Some builds/config may require disabling Memory Integrity (Core
-Isolation) — a real security tradeoff, your call. And this adds to the driver
-stack near anti-cheat (hidusbf + ViGEm + HidHide); widely used, but never
-zero-risk. Use at your own judgement.
-
 ## Porting to another SCUF / pad
 
 The HID report layout is per-model, so a different SCUF (or firmware) will likely
@@ -221,9 +193,8 @@ need remapping. The process:
   pad — see *Porting to another SCUF / pad*.
 - **Where are the logs?** `%LOCALAPPDATA%\ScufDualSense\scuf.log` (also reachable
   via tray → **Open log folder**). The tray tooltip (hover) and the log's periodic
-  throughput line show the delivered poll rate. ~250 Hz is normal (the genuine
-  DualShock 4 USB rate); to go higher, see *Higher polling rate*. Note the
-  tooltip reads a little low versus a dedicated tester — see that section.
+  throughput line show the delivered poll rate. ~250 Hz is normal — the genuine
+  DualShock 4 USB rate.
 
 ## Honest caveats
 
