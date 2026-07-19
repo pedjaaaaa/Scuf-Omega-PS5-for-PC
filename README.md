@@ -40,6 +40,8 @@ Follow these steps in order. Each links to the detailed section further down.
    [Steam settings](#steam-settings-important).
 7. **(Optional) Start it automatically at logon** via Task Scheduler — see
    [Auto-start at logon](#auto-start-at-logon-hidden-elevated).
+8. **(Optional) Raise the polling rate** from ~250 Hz to ~800–900 Hz with hidusbf
+   — see [Higher polling rate](#higher-polling-rate-optional-250--800900-hz).
 
 ## What works
 
@@ -152,6 +154,53 @@ can't elevate):
    - **Actions**: start the published `ScufDualSense.exe`.
    - **Conditions**: uncheck *Start only on AC power* if on a laptop.
 3. Done — it now starts hidden at logon and waits for the pad.
+
+## Higher polling rate (optional, ~250 → 800–900 Hz)
+
+In PS5 mode the SCUF reports at ~250 Hz (a real DualShock 4's USB rate). That's
+fine for most people, but you can raise it with **hidusbf**, a signed kernel USB
+filter (as distributed by Battle Beaver). hidusbf works at the Windows USB
+interrupt-scheduling layer — it doesn't change the device itself — so your bridge
+just inherits the higher rate and **no app changes are needed**. Thanks to
+Front_Frame4653 for the driver-variant and stability findings.
+
+**Realistic result:** ~800–900 Hz through the virtual DS4 (mine is stable at
+**870 Hz** and survives reboots) — roughly 3.5× a genuine DualShock 4. A true
+1000 Hz only exists in the pad's **PC/Xbox mode**, which loses the touchpad, PS
+button, and PlayStation prompts, so this bridge tops out below 1000 by design.
+
+### Setup
+
+1. Get the Battle Beaver **hidusbf** package.
+2. In its `DRIVER` folder, run **`2kHz-4kHz.cmd`** first. This swaps in the 4 kHz
+   driver variant — **don't skip it**, the higher refresh rates won't be available
+   otherwise.
+3. Run **`Setup.exe`** → **Install Service** → reboot.
+4. Run `Setup.exe` again → tick **`filter on device`** for the SCUF → set
+   **RefreshRate = 62** → click **Restart**.
+5. Reconnect the pad (or reboot) and confirm the new rate with a tester (below).
+
+### The two things that actually matter
+
+- **Plug the SCUF into a rear motherboard USB 3.x port — never a hub or
+  front-panel port.** This was the single biggest factor: a hub capped me at
+  ~566 Hz; a rear 3.x port jumped it to ~750. If you're stuck below ~700, this is
+  almost certainly why.
+- **RefreshRate 62 beat 31 for me** (~750 → 870 Hz). Try both and keep whichever
+  reads higher *and* stable — some setups do better on 31.
+
+Measure with a polling tester (e.g. Gamepadla) pointed at the virtual **"Wireless
+Controller"** — that's what the game actually sees. The tray tooltip also shows a
+rate, but it reads a little low (it counts reports drained from the Windows HID
+buffer, which coalesces), so trust the tester.
+
+### Caveats
+
+hidusbf is a kernel driver and requires USB 3.x with the Microsoft USB 3.x stack
+(Windows 8/10/11). Some setups may require disabling **Memory Integrity** (Core
+Isolation) for the filter to load — that's a real security tradeoff, so it's your
+call. This also adds another driver to the stack near anti-cheat (hidusbf + ViGEm
++ HidHide); widely used, but never zero-risk. Use at your own judgement.
 
 ## Porting to another SCUF / pad
 
