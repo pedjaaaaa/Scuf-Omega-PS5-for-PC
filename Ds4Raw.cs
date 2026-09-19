@@ -244,58 +244,55 @@ public static class Ds4Raw
         => (short)Math.Clamp(v - bias, short.MinValue, short.MaxValue);
 }
 
-// Learns the gyro's zero-rate offset while the pad is sitting still and
-// subtracts it, so a resting controller doesn't slowly pan the camera.
-// Re-learns whenever the pad is still again, which handles thermal drift.
-// The DualSense reports uncalibrated sensor values and expects the host to
-// apply the factory calibration from feature report 0x05; this is the cheap
-// approximation of that.
+// Continuously tracks and filters the gyro's zero-rate offset using an
+// exponential moving average (EMA) during resting periods, preventing drift
+// from thermal changes or prolonged use. The Scuf Omega does NOT expose
+// factory calibration data via feature report 0x05.
 public sealed class GyroBias
 {
-    private const int StillSamples = 150;  // ~0.6 s at 250 Hz
-    private const int StillBand = 100;     // max raw spread that still counts as "still"
+    // Low-pass filter weight for tracking slow thermal drift (higher = slower adaptation)
+    private const float Alpha = 0.001f; 
+    
+    // Maximum deviation from zero to be considered "still" (tighter band prevents locking in hand motion)
+    private const int NoiseThreshold = 15;
 
-    private int _count;
-    private long _sx, _sy, _sz;
-    private short _minX, _maxX, _minY, _maxY, _minZ, _maxZ;
+    private float _biasX, _biasY, _biasZ;
+    private bool _initialized;
 
-    public short X { get; private set; }
-    public short Y { get; private set; }
-    public short Z { get; private set; }
-    public bool Ready { get; private set; }
+    public short X => (short)_biasX;
+    public short Y => (short)_biasY;
+    public short Z => (short)_biasZ;
+    public bool Ready => _initialized;
 
     public void Feed(short gx, short gy, short gz)
     {
-        if (_count == 0)
+        if (!_initialized)
         {
-            _minX = _maxX = gx; _minY = _maxY = gy; _minZ = _maxZ = gz;
-        }
-        else
-        {
-            if (gx < _minX) _minX = gx; if (gx > _maxX) _maxX = gx;
-            if (gy < _minY) _minY = gy; if (gy > _maxY) _maxY = gy;
-            if (gz < _minZ) _minZ = gz; if (gz > _maxZ) _maxZ = gz;
-
-            if (_maxX - _minX > StillBand ||
-                _maxY - _minY > StillBand ||
-                _maxZ - _minZ > StillBand)
-            {
-                Reset();   // pad moved; this window is not a rest period
-                return;
-            }
+            _biasX = gx;
+            _biasY = gy;
+            _biasZ = gz;
+            _initialized = true;
+            return;
         }
 
-        _sx += gx; _sy += gy; _sz += gz;
-        if (++_count < StillSamples) return;
+        // Check if the current raw values are stable enough to qualify as resting drift.
+        // Check against the *current* running bias to measure pure noise.
+        float diffX = gx - _biasX;
+        float diffY = gy - _biasY;
+        float diffZ = gz - _biasZ;
 
-        X = (short)(_sx / _count);
-        Y = (short)(_sy / _count);
-        Z = (short)(_sz / _count);
-        Ready = true;
-        Reset();
+        if (Math.Abs(diffX) <= NoiseThreshold &&
+            Math.Abs(diffY) <= NoiseThreshold &&
+            Math.Abs(diffZ) <= NoiseThreshold)
+        {
+            // Slowly creep the bias toward the resting values to handle thermal warming
+            _biasX += diffX * Alpha;
+            _biasY += diffY * Alpha;
+            _biasZ += diffZ * Alpha;
+        }
+        // If the controller is moving, do NOT update the bias, 
+        // preventing physical movements from corrupting the center point.
     }
-
-    private void Reset() { _count = 0; _sx = _sy = _sz = 0; }
 }
 
 // One-shot diagnostic. Watches the six motion words for a few seconds after

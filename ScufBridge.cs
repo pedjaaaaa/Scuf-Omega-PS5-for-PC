@@ -2,7 +2,7 @@
 //
 // The resilient core. One background supervisor thread that:
 //   * creates the ViGEm client + HidHide session ONCE for the process,
-//   * waits for the SCUF (PS mode) to appear, connecting when it does,
+//   * waits for the SCUF (PS mode Wired/Wireless) to appear, connecting when it does,
 //   * runs the HID->DS4 read loop until the pad is removed or errors,
 //   * then loops back to waiting — surviving unplug/replug indefinitely.
 //
@@ -21,10 +21,14 @@ namespace ScufDualSense;
 
 public sealed class ScufBridge : IDisposable
 {
-    // --- device identity (this specific SCUF model in PS mode) ---------
+    // --- device identity (this specific SCUF model in PS mode - Wired/Wireless) ---------
     private const int Vid = 0x1B1C;
-    private const int Pid = 0x3A27;
-    private const string DeviceFragment = "VID_1B1C&PID_3A27";
+    private const int PidWired = 0x3A27;
+	private const int PidWireless = 0x3A29;
+	private static readonly int[] Pids = { PidWired, PidWireless };
+	
+	// Use a generic fragment or check against both instance strings
+    private const string DeviceFragment = "VID_1B1C&PID_";
 
     // Hide the physical Corsair pad. The game ignores it anyway (wrong VID),
     // so this is defensive. Flip false if hiding ever disturbs the reader.
@@ -163,18 +167,24 @@ public sealed class ScufBridge : IDisposable
         // normal exit and crash.
     }
 
-    private HidDevice? FindDevice()
+	private HidDevice? FindDevice()
     {
         try
         {
             var list = DeviceList.Local.GetHidDevices()
-                .Where(d => d.VendorID == Vid && d.ProductID == Pid).ToList();
+                .Where(d => d.VendorID == Vid && Pids.Contains(d.ProductID)).ToList();
+
+            if (list.Count > 1)
+            {
+                _log($"[warn] Multiple SCUF devices detected ({list.Count}), picking the first available.");
+            }
+
             return list.FirstOrDefault(HasGamepadUsage) ?? list.FirstOrDefault(d => SafeLen(d) == 64);
         }
         catch { return null; }
     }
-
-    private void HideDevice()
+	
+	private void HideDevice()
     {
         if (_hidHide is null) return;
         try

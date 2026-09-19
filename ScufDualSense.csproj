@@ -10,6 +10,18 @@
     <AssemblyName>ScufDualSense</AssemblyName>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
+	
+	<!-- Build into single-file executable -->
+	<PublishSingleFile>true</PublishSingleFile>
+	<SelfContained>true</SelfContained>
+	<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+	<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+	
+	<!-- Don't trim HID libraries -->
+	<PublishTrimmed>false</PublishTrimmed>
+	
+	<!-- Include Native libraries -->
+	<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
 
     <!-- Custom icon shown for the .exe (Explorer, Task Manager) and used as the
          base for the embedded resource loaded by the tray. -->
@@ -22,6 +34,12 @@
          "highest privileges" runs it elevated silently. HidHide + ViGEm
          both require admin. -->
     <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  
+  <!-- Disable PDB generation on release build -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>None</DebugType>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <!-- The tools/ folder is a separate project (ScufCalibrate) with its own

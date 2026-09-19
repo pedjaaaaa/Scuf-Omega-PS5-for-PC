@@ -20,13 +20,13 @@ re-presents it under Sony's real VID (`0x054C` / DS4 `0x05C4`) via ViGEm, so
 Windows and games see a genuine DualShock 4.
 
 Built because tools like DS4Windows/reWASD didn't recognise this specific SCUF
-(Corsair VID `0x1B1C`, PID `0x3A27`) as a PlayStation device — Windows and
+(Corsair VID `0x1B1C`,Wired PID `0x3A27` / Wireless PID `0x3A29`) as a PlayStation device — Windows and
 XInput-native games saw a "generic controller" and ignored it or showed Xbox
 prompts.
 
 > ⚠️ **This is calibrated for one specific SCUF model.** The byte/bit maps in
 > `ScufReport.cs` (buttons and sticks) and `Ds4Raw.cs` (motion and touch) were
-> reverse-engineered for VID `1B1C` / PID `3A27`. A different SCUF (or firmware)
+> reverse-engineered for VID `1B1C` / Wired PID `3A27`, Wireless PID `3A29`. A different SCUF (or firmware)
 > may use a different PID and/or report layout. See
 > "Porting to another SCUF / pad" below for how to remap it.
 
@@ -43,7 +43,7 @@ Follow these steps in order. Each links to the detailed section further down.
    (hides the physical pad), then reboot.
 4. **Confirm your controller matches.** Put the SCUF in **PS5 mode**, open Device
    Manager → your controller → *Details* → *Hardware Ids*, and check it reads
-   `VID_1B1C` / `PID_3A27`. If it differs, see
+   `VID_1B1C` / `PID_3A27` or `PID_3A29`. If it differs, see
    [Porting to another SCUF / pad](#porting-to-another-scuf--pad) before continuing.
 5. **Clone and run the app:**
    ```powershell
@@ -112,7 +112,7 @@ byte earlier than a real DualSense puts them.
 ### Which SCUF does this support?
 
 Out of the box, only the specific model it was calibrated for: **Corsair VID
-`0x1B1C`, PID `0x3A27`** (a SCUF running in PS/HID mode). Other SCUF models or
+`0x1B1C`, Wired PID `0x3A27`/Wireless PID `0x3A29`** (a SCUF running in PS/HID Wired/Wireless mode). Other SCUF models or
 firmware revisions may enumerate with a different PID and/or report layout — see
 [Porting to another SCUF / pad](#porting-to-another-scuf--pad).
 
@@ -187,7 +187,7 @@ can't elevate):
 
 1. Publish a standalone exe:
    ```powershell
-   dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+   dotnet publish -c Release -r
    ```
    Result: `bin\Release\net8.0-windows\win-x64\publish\ScufDualSense.exe`
 2. Task Scheduler → **Create Task** (not Basic):
